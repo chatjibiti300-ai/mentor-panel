@@ -3,7 +3,7 @@ import sqlite3
 import threading
 import asyncio
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for
 from bot import main as bot_main
 
 app = Flask(__name__)
@@ -46,7 +46,10 @@ def init_db():
     CREATE TABLE IF NOT EXISTS questions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         group_id INTEGER,
-        question TEXT NOT NULL
+        student_id INTEGER,
+        question TEXT NOT NULL,
+        answer TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
 
@@ -61,8 +64,21 @@ def run_bot():
     asyncio.run(bot_main())
 
 
-# app start bo‘lganda bazani yaratadi
+bot_started = False
+
+def start_bot_once():
+    global bot_started
+    if not bot_started:
+        t = threading.Thread(target=run_bot, daemon=True)
+        t.start()
+        bot_started = True
+
+
+# =========================
+# APP STARTUP
+# =========================
 init_db()
+start_bot_once()
 
 
 # =========================
@@ -76,12 +92,12 @@ def dashboard():
     groups_data = []
     for group in groups:
         students_count = conn.execute(
-            "SELECT COUNT(*) as cnt FROM students WHERE group_id=?",
+            "SELECT COUNT(*) AS cnt FROM students WHERE group_id=?",
             (group["id"],)
         ).fetchone()["cnt"]
 
         questions_count = conn.execute(
-            "SELECT COUNT(*) as cnt FROM questions WHERE group_id=?",
+            "SELECT COUNT(*) AS cnt FROM questions WHERE group_id=?",
             (group["id"],)
         ).fetchone()["cnt"]
 
@@ -100,13 +116,11 @@ def dashboard():
 def create_group():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
-
         if name:
             conn = get_connection()
             conn.execute("INSERT INTO groups (name) VALUES (?)", (name,))
             conn.commit()
             conn.close()
-
         return redirect(url_for("dashboard"))
 
     return render_template("create_group.html")
@@ -130,10 +144,13 @@ def group_detail(group_id):
         (group_id,)
     ).fetchall()
 
-    questions = conn.execute(
-        "SELECT * FROM questions WHERE group_id=? ORDER BY id DESC",
-        (group_id,)
-    ).fetchall()
+    questions = conn.execute("""
+        SELECT q.*, s.name AS student_name, s.username AS student_username
+        FROM questions q
+        LEFT JOIN students s ON q.student_id = s.id
+        WHERE q.group_id=?
+        ORDER BY q.id DESC
+    """, (group_id,)).fetchall()
 
     conn.close()
 
@@ -151,8 +168,8 @@ def add_question(group_id):
     if question:
         conn = get_connection()
         conn.execute(
-            "INSERT INTO questions (group_id, question) VALUES (?, ?)",
-            (group_id, question)
+            "INSERT INTO questions (group_id, student_id, question) VALUES (?, ?, ?)",
+            (group_id, None, question)
         )
         conn.commit()
         conn.close()
@@ -160,9 +177,29 @@ def add_question(group_id):
     return redirect(url_for("group_detail", group_id=group_id))
 
 
-@app.route("/reply", methods=["GET", "POST"])
-def reply_page():
-    return render_template("reply.html")
+@app.route("/reply/<int:question_id>", methods=["POST"])
+def reply_question(question_id):
+    answer = request.form.get("answer", "").strip()
+
+    conn = get_connection()
+    q = conn.execute(
+        "SELECT * FROM questions WHERE id=?",
+        (question_id,)
+    ).fetchone()
+
+    if q and answer:
+        conn.execute(
+            "UPDATE questions SET answer=? WHERE id=?",
+            (answer, question_id)
+        )
+        conn.commit()
+
+    group_id = q["group_id"] if q else 0
+    conn.close()
+
+    if group_id:
+        return redirect(url_for("group_detail", group_id=group_id))
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/settings")
@@ -199,24 +236,5 @@ def rename_group(group_id):
     return redirect(url_for("dashboard"))
 
 
-@app.route("/debug-groups")
-def debug_groups():
-    conn = get_connection()
-    groups = conn.execute("SELECT * FROM groups ORDER BY id DESC").fetchall()
-    conn.close()
-
-    return jsonify({
-        "db_path": DB_PATH,
-        "groups_count": len(groups),
-        "groups": [dict(g) for g in groups]
-    })
-
-
-# =========================
-# START
-# =========================
 if __name__ == "__main__":
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-
     app.run(host="0.0.0.0", port=10000, debug=False)
