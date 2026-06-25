@@ -1,20 +1,19 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yangi guruh yaratish</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Yangi guruh</title>
 </head>
 <body>
-    <div class="container">
-        <h1>➕ Yangi guruh yaratish</h1>
-        <p>Guruh nomini kiriting</p>
+    <h1>Yangi guruh yaratish</h1>
 
-        <form method="POST">
-            <input type="text" name="group_name" placeholder="Masalan: Iyun oyi" class="input-box" required>
-            <button type="submit" class="btn">Yaratish</button>
-        </form>
-    </div>
+    <form method="POST" action="/create-group">
+        <input type="text" name="name" placeholder="Guruh nomi" required>
+        <button type="submit">Yaratish</button>
+    </form>
+
+    <br>
+    <a href="/">Dashboardga qaytish</a>
 </body>
 </html>
