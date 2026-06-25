@@ -1,12 +1,11 @@
 import os
 import sqlite3
-import threading
-import asyncio
-from flask import Flask, render_template, request, redirect
-from bot import main as bot_main
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 app = Flask(__name__)
-DB_PATH = "database.db"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "database.db")
 
 
 # =========================
@@ -43,7 +42,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS questions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         group_id INTEGER,
-        question TEXT
+        question TEXT NOT NULL
     )
     """)
 
@@ -51,11 +50,8 @@ def init_db():
     conn.close()
 
 
-# =========================
-# BOT
-# =========================
-def run_bot():
-    asyncio.run(bot_main())
+# app start bo‘lganda bazani yaratadi
+init_db()
 
 
 # =========================
@@ -93,12 +89,14 @@ def dashboard():
 def create_group():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
+
         if name:
             conn = get_connection()
             conn.execute("INSERT INTO groups (name) VALUES (?)", (name,))
             conn.commit()
             conn.close()
-        return redirect("/")
+
+        return redirect(url_for("dashboard"))
 
     return render_template("create_group.html")
 
@@ -148,7 +146,7 @@ def add_question(group_id):
         conn.commit()
         conn.close()
 
-    return redirect(f"/group/{group_id}")
+    return redirect(url_for("group_detail", group_id=group_id))
 
 
 @app.route("/reply", methods=["GET", "POST"])
@@ -173,7 +171,7 @@ def delete_group(group_id):
     conn.execute("DELETE FROM students WHERE group_id=?", (group_id,))
     conn.commit()
     conn.close()
-    return redirect("/")
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/rename-group/<int:group_id>", methods=["POST"])
@@ -187,19 +185,27 @@ def rename_group(group_id):
         )
         conn.commit()
         conn.close()
-    return redirect("/")
+    return redirect(url_for("dashboard"))
+
+
+# =========================
+# DEBUG ROUTE
+# =========================
+@app.route("/debug-groups")
+def debug_groups():
+    conn = get_connection()
+    groups = conn.execute("SELECT * FROM groups ORDER BY id DESC").fetchall()
+    conn.close()
+
+    return jsonify({
+        "db_path": DB_PATH,
+        "groups_count": len(groups),
+        "groups": [dict(g) for g in groups]
+    })
 
 
 # =========================
 # START
 # =========================
-init_db()
-
-# Botni Renderda 2 marta ishga tushirmaslik uchun:
-if os.environ.get("RENDER") != "true":
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=10000, debug=False)
