@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sozlamalar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <h2>Mentor Panel</h2>
+        <a href="/">🏠 Dashboard</a>
+        <a href="/create-group">➕ Yangi guruh</a>
+        <a href="/settings">⚙️ Sozlamalar</a>
+    </aside>
+
+    <main class="main">
+        <h1>⚙️ Sozlamalar</h1>
+
+        <form method="POST" class="card" style="max-width:700px;">
+            <label>Ish vaqti boshlanishi</label>
+            <input type="number" name="start_hour" class="input-box" value="{{ settings.start_hour }}">
+
+            <label style="margin-top:15px;">Ish vaqti tugashi</label>
+            <input type="number" name="end_hour" class="input-box" value="{{ settings.end_hour }}">
+
+            <label style="margin-top:15px;">Welcome text</label>
+            <textarea name="welcome_text" class="input-box" style="height:140px;">{{ settings.welcome_text }}</textarea>
+
+            <button type="submit" class="btn" style="margin-top:20px;">Saqlash</button>
+        </form>
+    </main>
+</div>
+</body>
+</html>

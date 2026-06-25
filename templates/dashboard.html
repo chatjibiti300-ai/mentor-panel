@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentor Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="layout">
+    <aside class="sidebar">
+        <h2>Mentor Panel</h2>
+        <a href="/">🏠 Dashboard</a>
+        <a href="/create-group">➕ Yangi guruh</a>
+        <a href="/settings">⚙️ Sozlamalar</a>
+    </aside>
+
+    <main class="main">
+        <h1>🎛 Mentor Dashboard</h1>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span>📩 Pending</span>
+                <h2>{{ pending_count }}</h2>
+            </div>
+            <div class="stat-card">
+                <span>✅ Answered</span>
+                <h2>{{ answered_count }}</h2>
+            </div>
+            <div class="stat-card">
+                <span>👥 Students</span>
+                <h2>{{ total_students }}</h2>
+            </div>
+            <div class="stat-card">
+                <span>📦 Groups</span>
+                <h2>{{ groups|length }}</h2>
+            </div>
+        </div>
+
+        <div class="section-header">
+            <h2>👥 Guruhlar</h2>
+            <a href="/create-group" class="btn">+ Guruh yaratish</a>
+        </div>
+
+        <div class="group-grid">
+            {% for group in groups %}
+            <div class="group-card">
+                <h3><a href="/group/{{ group.id }}">{{ group.name }}</a></h3>
+                <p class="muted">{{ group.invite_link }}</p>
+
+                <form action="/rename-group/{{ group.id }}" method="POST" class="rename-form">
+                    <input type="text" name="new_name" placeholder="Yangi nom">
+                    <button type="submit" class="btn small-btn">Saqlash</button>
+                </form>
+
+                <a href="/delete-group/{{ group.id }}" class="danger-btn">🗑 O‘chirish</a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="section-header" style="margin-top:40px;">
+            <h2>🕒 Oxirgi savollar</h2>
+        </div>
+
+        <div class="question-list">
+            {% for q in recent_questions %}
+            <div class="question-row">
+                <div>
+                    <strong>{{ q.full_name }}</strong>
+                    <span class="muted">— {{ q.group_name }}</span>
+                    <p>{{ q.question_text if q.question_text else "Media savol" }}</p>
+                </div>
+                <span class="badge {{ q.status }}">{{ q.status }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+</div>
+</body>
+</html>

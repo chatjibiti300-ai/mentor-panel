@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ group.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body{
+            background: linear-gradient(135deg, #020817 0%, #07122d 45%, #111827 100%);
+            color: #fff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+        .container{
+            width: min(1100px, 92%);
+            margin: 32px auto 60px;
+        }
+        .back-btn{
+            display:inline-block;
+            margin-bottom: 20px;
+            padding: 12px 18px;
+            border-radius: 14px;
+            background:#ff2d7a;
+            color:#fff;
+            text-decoration:none;
+            font-weight:700;
+        }
+        h1{
+            font-size: 48px;
+            margin: 10px 0 26px;
+        }
+        h2{
+            font-size: 32px;
+            margin: 34px 0 18px;
+        }
+        .question-card{
+            background: linear-gradient(90deg, rgba(19,32,61,.95), rgba(38,49,68,.95));
+            border:1px solid rgba(255,255,255,.08);
+            border-radius: 22px;
+            padding: 24px;
+            margin-bottom: 22px;
+            box-shadow: 0 10px 30px rgba(0,0,0,.22);
+        }
+        .question-card h3{
+            margin:0 0 14px;
+            font-size: 22px;
+            font-style: italic;
+        }
+        .question-card p{
+            margin: 10px 0;
+            font-size: 22px;
+            line-height: 1.5;
+        }
+        .date{
+            opacity:.9;
+            font-size:18px !important;
+        }
+        .preview-img{
+            width: 360px;
+            max-width: 100%;
+            border-radius: 18px;
+            margin: 16px 0;
+            display:block;
+            box-shadow: 0 10px 28px rgba(0,0,0,.28);
+        }
+        .reply-btn{
+            display:inline-block;
+            margin-top:10px;
+            padding: 16px 26px;
+            border-radius: 16px;
+            background:#ff2d7a;
+            color:#fff;
+            text-decoration:none;
+            font-weight:800;
+            font-size:22px;
+        }
+        .file-box{
+            margin: 14px 0;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.08);
+            display: inline-block;
+            font-size: 18px;
+        }
+        .empty{
+            opacity:.85;
+            font-size:20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">⬅ Orqaga</a>
+
+        <h1>📩 {{ group.name }}</h1>
+
+        <h2>⏳ Pending savollar</h2>
+
+        {% if pending_questions %}
+            {% for q in pending_questions %}
+                <div class="question-card">
+                    <h3>{{ q.full_name }}</h3>
+
+                    <p><strong>Savol:</strong>
+                        {% if q.question_text %}
+                            {{ q.question_text }}
+                        {% else %}
+                            Matnsiz savol
+                        {% endif %}
+                    </p>
+
+                    <p class="date">🕒 {{ q.created_at }}</p>
+
+                    {% if q.file_type == 'photo' and q.file_id %}
+                        {% set img_url = get_file_url(q.file_id) %}
+                        {% if img_url %}
+                            <img src="{{ img_url }}" alt="Savol rasmi" class="preview-img">
+                        {% else %}
+                            <div class="file-box">📷 Rasm bor, lekin URL olinmadi</div>
+                        {% endif %}
+                    {% elif q.file_type == 'document' and q.file_id %}
+                        <div class="file-box">📎 Fayl yuborilgan</div>
+                    {% elif q.file_type == 'video' and q.file_id %}
+                        <div class="file-box">🎥 Video yuborilgan</div>
+                    {% endif %}
+
+                    <a href="/reply/{{ q.id }}" class="reply-btn">✍️ Javob berish</a>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty">Pending savollar yo‘q.</p>
+        {% endif %}
+
+        <h2>✅ Answered tarix</h2>
+
+        {% if answered_questions %}
+            {% for q in answered_questions %}
+                <div class="question-card">
+                    <h3>{{ q.full_name }}</h3>
+
+                    <p><strong>Savol:</strong>
+                        {% if q.question_text %}
+                            {{ q.question_text }}
+                        {% else %}
+                            Matnsiz savol
+                        {% endif %}
+                    </p>
+
+                    {% if q.answer_text %}
+                        <p><strong>Javob:</strong> {{ q.answer_text }}</p>
+                    {% endif %}
+
+                    <p class="date">🕒 {{ q.answered_at if q.answered_at else q.created_at }}</p>
+
+                    {% if q.file_type == 'photo' and q.file_id %}
+                        {% set img_url = get_file_url(q.file_id) %}
+                        {% if img_url %}
+                            <img src="{{ img_url }}" alt="Savol rasmi" class="preview-img">
+                        {% else %}
+                            <div class="file-box">📷 Rasm bor, lekin URL olinmadi</div>
+                        {% endif %}
+                    {% elif q.file_type == 'document' and q.file_id %}
+                        <div class="file-box">📎 Savolda fayl yuborilgan</div>
+                    {% elif q.file_type == 'video' and q.file_id %}
+                        <div class="file-box">🎥 Savolda video yuborilgan</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty">Answered tarix bo‘sh.</p>
+        {% endif %}
+    </div>
+</body>
+</html>
