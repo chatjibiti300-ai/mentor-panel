@@ -1,11 +1,12 @@
 import os
 import sqlite3
+import threading
+import asyncio
 from flask import Flask, render_template, request, redirect
+from bot import main as bot_main
 
 app = Flask(__name__)
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "database.db")
+DB_PATH = "database.db"
 
 
 # =========================
@@ -21,7 +22,6 @@ def init_db():
     conn = get_connection()
     cur = conn.cursor()
 
-    # groups
     cur.execute("""
     CREATE TABLE IF NOT EXISTS groups (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,7 +29,6 @@ def init_db():
     )
     """)
 
-    # students
     cur.execute("""
     CREATE TABLE IF NOT EXISTS students (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,12 +39,11 @@ def init_db():
     )
     """)
 
-    # questions
     cur.execute("""
     CREATE TABLE IF NOT EXISTS questions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         group_id INTEGER,
-        question TEXT NOT NULL
+        question TEXT
     )
     """)
 
@@ -53,8 +51,11 @@ def init_db():
     conn.close()
 
 
-# app start bo‘lishida bazani yaratib oladi
-init_db()
+# =========================
+# BOT
+# =========================
+def run_bot():
+    asyncio.run(bot_main())
 
 
 # =========================
@@ -63,7 +64,6 @@ init_db()
 @app.route("/")
 def dashboard():
     conn = get_connection()
-
     groups = conn.execute("SELECT * FROM groups ORDER BY id DESC").fetchall()
 
     groups_data = []
@@ -153,8 +153,6 @@ def add_question(group_id):
 
 @app.route("/reply", methods=["GET", "POST"])
 def reply_page():
-    if request.method == "POST":
-        return redirect("/")
     return render_template("reply.html")
 
 
@@ -195,5 +193,13 @@ def rename_group(group_id):
 # =========================
 # START
 # =========================
+init_db()
+
+# Botni Renderda 2 marta ishga tushirmaslik uchun:
+if os.environ.get("RENDER") != "true":
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=False)
+    app.run(host="0.0.0.0", port=10000)
