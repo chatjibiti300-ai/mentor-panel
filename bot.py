@@ -7,6 +7,11 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 
 from config import BOT_TOKEN, DB_PATH
 
+# =========================
+# SETTINGS
+# =========================
+PANEL_URL = "https://mentor-panel-web.onrender.com"
+
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
@@ -18,6 +23,13 @@ def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def get_groups():
+    conn = get_connection()
+    groups = conn.execute("SELECT * FROM groups ORDER BY id DESC").fetchall()
+    conn.close()
+    return groups
 
 
 def get_first_group():
@@ -71,12 +83,34 @@ def save_question(group_id: int, question_text: str):
     conn.close()
 
 
+def get_stats():
+    conn = get_connection()
+
+    groups_count = conn.execute("SELECT COUNT(*) AS cnt FROM groups").fetchone()["cnt"]
+    students_count = conn.execute("SELECT COUNT(*) AS cnt FROM students").fetchone()["cnt"]
+    questions_count = conn.execute("SELECT COUNT(*) AS cnt FROM questions").fetchone()["cnt"]
+
+    conn.close()
+    return groups_count, students_count, questions_count
+
+
 # =========================
-# KEYBOARD
+# KEYBOARDS
 # =========================
+main_menu = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🌐 Admin panelni ochish")],
+        [KeyboardButton(text="📩 Savollar"), KeyboardButton(text="👥 Guruhlar")],
+        [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="⚙️ Sozlamalar")],
+        [KeyboardButton(text="🏠 Bosh menu")]
+    ],
+    resize_keyboard=True
+)
+
 student_menu = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="Savol yuborish")]
+        [KeyboardButton(text="Savol yuborish")],
+        [KeyboardButton(text="🏠 Bosh menu")]
     ],
     resize_keyboard=True
 )
@@ -87,20 +121,83 @@ student_menu = ReplyKeyboardMarkup(
 # =========================
 @dp.message(CommandStart())
 async def start_handler(message: Message):
-    student = save_student(
-        user_id=message.from_user.id,
-        full_name=message.from_user.full_name,
-        username=message.from_user.username
+    await message.answer(
+        "Kerakli bo‘limni tanlang:",
+        reply_markup=main_menu
     )
+
+
+@dp.message(F.text == "🏠 Bosh menu")
+async def home_handler(message: Message):
+    await message.answer(
+        "Bosh menu:",
+        reply_markup=main_menu
+    )
+
+
+@dp.message(F.text == "🌐 Admin panelni ochish")
+async def admin_panel_handler(message: Message):
+    await message.answer(
+        f"🌐 Admin panel linki:\n\n{PANEL_URL}\n\n"
+        f"Agar bossangiz panel brauzerda ochiladi."
+    )
+
+
+@dp.message(F.text == "👥 Guruhlar")
+async def groups_handler(message: Message):
+    groups = get_groups()
+
+    if not groups:
+        await message.answer("Hozircha guruhlar yo‘q.")
+        return
+
+    text = "👥 Guruhlar ro‘yxati:\n\n"
+    for i, group in enumerate(groups, start=1):
+        text += f"{i}. {group['name']}\n"
+
+    await message.answer(text)
+
+
+@dp.message(F.text == "📊 Statistika")
+async def stats_handler(message: Message):
+    groups_count, students_count, questions_count = get_stats()
+
+    text = (
+        "📊 Statistika:\n\n"
+        f"👥 Guruhlar soni: {groups_count}\n"
+        f"🎓 Studentlar soni: {students_count}\n"
+        f"📩 Savollar soni: {questions_count}"
+    )
+    await message.answer(text)
+
+
+@dp.message(F.text == "⚙️ Sozlamalar")
+async def settings_handler(message: Message):
+    await message.answer(
+        "⚙️ Sozlamalar bo‘limi.\n\n"
+        f"Bot username: @{bot.username if bot.username else 'aniqlanmadi'}\n"
+        f"Admin panel: {PANEL_URL}"
+    )
+
+
+@dp.message(F.text == "📩 Savollar")
+async def savollar_handler(message: Message):
+    student = get_student(message.from_user.id)
+    if not student:
+        student = save_student(
+            user_id=message.from_user.id,
+            full_name=message.from_user.full_name,
+            username=message.from_user.username
+        )
 
     if not student:
         await message.answer(
-            "Hozircha guruh yaratilmagan. Avval paneldan guruh yarating."
+            "Hozircha guruh yaratilmagan. Avval paneldan kamida 1 ta guruh yarating."
         )
         return
 
     await message.answer(
-        "Assalomu alaykum! Mentor botga xush kelibsiz.\n\nSavolingizni yuborishingiz mumkin.",
+        "Savolingizni yuborish uchun pastdagi tugmani bosing:",
         reply_markup=student_menu
     )
 
@@ -126,7 +223,18 @@ async def ask_button_handler(message: Message):
 async def text_handler(message: Message):
     text = (message.text or "").strip()
 
-    if text == "Savol yuborish":
+    # menyu textlarini savol deb saqlab yubormaslik uchun
+    blocked_texts = {
+        "🌐 Admin panelni ochish",
+        "📩 Savollar",
+        "👥 Guruhlar",
+        "📊 Statistika",
+        "⚙️ Sozlamalar",
+        "🏠 Bosh menu",
+        "Savol yuborish"
+    }
+
+    if text in blocked_texts:
         return
 
     student = get_student(message.from_user.id)
@@ -143,7 +251,10 @@ async def text_handler(message: Message):
 
     save_question(student["group_id"], text)
 
-    await message.answer("Savolingiz qabul qilindi ✅", reply_markup=student_menu)
+    await message.answer(
+        "Savolingiz qabul qilindi ✅",
+        reply_markup=main_menu
+    )
 
 
 # =========================
@@ -156,4 +267,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
