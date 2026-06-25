@@ -1,6 +1,10 @@
 import os
 import sqlite3
+import threading
+import asyncio
+
 from flask import Flask, render_template, request, redirect, url_for, jsonify
+from bot import main as bot_main
 
 app = Flask(__name__)
 
@@ -48,6 +52,13 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+
+# =========================
+# BOT THREAD
+# =========================
+def run_bot():
+    asyncio.run(bot_main())
 
 
 # app start bo‘lganda bazani yaratadi
@@ -188,9 +199,6 @@ def rename_group(group_id):
     return redirect(url_for("dashboard"))
 
 
-# =========================
-# DEBUG ROUTE
-# =========================
 @app.route("/debug-groups")
 def debug_groups():
     conn = get_connection()
@@ -208,4 +216,7 @@ def debug_groups():
 # START
 # =========================
 if __name__ == "__main__":
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+
     app.run(host="0.0.0.0", port=10000, debug=False)
