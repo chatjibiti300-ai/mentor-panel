@@ -1,13 +1,11 @@
 import os
 import sqlite3
-import threading
-import asyncio
-
-from flask import Flask, render_template, request, redirect, url_for
-from bot import main as bot_main
+from flask import Flask, render_template, request, redirect
 
 app = Flask(__name__)
-DB_PATH = "database.db"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "database.db")
 
 
 # =========================
@@ -55,11 +53,8 @@ def init_db():
     conn.close()
 
 
-# =========================
-# BOT THREAD
-# =========================
-def run_bot():
-    asyncio.run(bot_main())
+# app start bo‘lishida bazani yaratib oladi
+init_db()
 
 
 # =========================
@@ -159,7 +154,6 @@ def add_question(group_id):
 @app.route("/reply", methods=["GET", "POST"])
 def reply_page():
     if request.method == "POST":
-        # hozircha bo'sh qoldirdim
         return redirect("/")
     return render_template("reply.html")
 
@@ -202,9 +196,4 @@ def rename_group(group_id):
 # START
 # =========================
 if __name__ == "__main__":
-    init_db()
-
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-
-    app.run(host="0.0.0.0", port=10000)
+    app.run(host="0.0.0.0", port=10000, debug=False)
